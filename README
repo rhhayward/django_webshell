@@ -1,0 +1,11 @@
+This is a django project written for personal use.  It can and will execute 
+arbitrary programs, and is thus dangerous.  As written, it executes all 
+commands with the priveleges of the web server, which in my use is as my
+user.
+
+Features include execution and the return of standard out of commands, with
+optional background execution via the & character, much like in unix shells.
+There is also a file manager, which provides navigation, image viewing, file 
+deletion, and text editing when coupled with codemirror 
+(http://codemirror.net/).  The codemirror files are not included in this 
+project.
