@@ -1,0 +1,15 @@
+<script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+
+<h1> You are username={{ username }} </h1>
+<h2> here's your history: </h2>
+
+<table border='1'>
+{% for h in history_list %}
+  <tr>
+    <td> <a href='/webshell/history/delete/{{h.id}}'> x </a> </td>
+    <td><pre> {{ h.time_stamp }} </pre></td>
+    <td><pre> {{ h.cmd_pwd    }} </pre></td>
+    <td><pre> {{ h.cmd_text   }} </pre></td>
+  </tr>
+{% endfor %}
+</table>

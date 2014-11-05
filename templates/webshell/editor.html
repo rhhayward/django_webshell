@@ -1,0 +1,36 @@
+<html>
+
+<link rel="stylesheet" href="/static/codemirror.css">
+
+<script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+<script src="/static/codemirror.js"></script>
+
+<style type="text/css">
+  .CodeMirror {border-top: 1px solid #eee; border-bottom: 1px solid #eee;}
+</style>
+
+<body>
+
+<form id="save" method="POST" action="/webshell/editor/save/{{fileName}}">
+{% csrf_token %}
+
+<textarea name="fileContents" id="fileContents">{{fileContents}}</textarea>
+</form>
+
+</body>
+
+</html>
+
+<script>
+
+  $("#fileContents").focus();
+  CodeMirror.commands.save = function(){ 
+    $("#save").submit();
+  };
+  var e = CodeMirror.fromTextArea(document.getElementById("fileContents"), {
+    lineNumbers: true,
+    mode: "text/x-csrc",
+    vimMode: true,
+    showCursorWhenSelecting: true
+  });
+</script>

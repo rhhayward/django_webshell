@@ -1,0 +1,124 @@
+<br/> <br/> <br/> 
+<form id="execute_form">
+{% csrf_token %}
+command: <input autocomplete='off' class='cmd_input' name="command" id="command" />
+<input type="submit" value="Execute" />
+</form>
+<input type="button" onclick="histup();" value="history up" name="history up 2"/>
+<input type="button" onclick="histdown();" value="history down" name="history down 2"/>
+
+<script type="text/javascript">
+var cmd_array = [];
+var hist_iter = -1;
+
+$(document).ready(function() {
+    {% for h in history_list %}
+    cmd_array.push(["{{h.cmd_pwd}}", "{{h.cmd_text}}"]);
+    {% endfor %}
+    hist_iter = cmd_array.length;
+    cmd_array.push(["",""]);
+
+    $("#command").focus();
+
+    $(".cmd_input").keyup(function (key) {
+        if (key.altKey) switch(key.which) {
+            case 67:  // alt-c
+                clearForm();
+                break;
+            case 73:  // alt-i
+                showHistory();
+                break;
+            case 82:  // alt-R
+                doSearch();
+                break;
+        }
+
+        switch(key.which) {
+            case 38: // keyup
+                histup();
+                key.preventDefault();
+                break;
+            case 40: // keydown
+                histdown();
+                key.preventDefault();
+                break;
+        }
+    });
+
+// this is the id of the form
+$("#execute_form").submit(function() {
+
+    var url = "/webshell/ajax/execute/"; // the script where you handle the form input.
+
+    $.ajax({
+           type: "POST",
+           url: url,
+           data: $("#execute_form").serialize(), // serializes the form's elements.
+           success: function(data)
+           {
+               $("#cmd_output").text(data.HTTPRESPONSE);
+           }
+         });
+
+    blank = cmd_array.pop();
+    cmd_array.push([
+        "", //$("#pwd").val(),
+        $("#command").val()
+    ]);
+    cmd_array.push(blank);
+    hist_iter = cmd_array.length-1;
+
+    $("#command").val("");
+    return false; // avoid to execute the actual submit of the form.
+});
+});
+
+
+function restore_history(i) {
+    $("#pwd").val(cmd_array[i][0]);
+    $("#command").val(cmd_array[i][1]);
+}
+
+function histdown() {
+    hist_iter++;
+    if (hist_iter >= cmd_array.length) { 
+        hist_iter = cmd_array.length-1;
+    } 
+    restore_history(hist_iter);
+}
+
+function histup() {
+    hist_iter--;
+    if (hist_iter < 0) { 
+        hist_iter = 0;
+    } 
+    restore_history(hist_iter);
+}
+
+function clearForm() {
+    $('#command').val("");
+    $('#pwd').val("");
+    hist_iter = cmd_array.length-1;
+}
+
+function showHistory() {
+    alert('showHistory');
+}
+
+function doSearch() {
+    var cmdtext = $('#command').val();
+    var pwdtext = $('#pwd').val();
+    
+    for(i=hist_iter-1;i>=0;i--) if(i < cmd_array.length-1) {
+        if( cmd_array[i][0].indexOf(pwdtext) >= 0 && 
+            cmd_array[i][1].indexOf(cmdtext) >= 0) {
+            restore_history(i);
+            break;
+        }
+    }
+}
+
+</script>
+
+<pre id="cmd_output" style='min-width:90%; min-height:10px; padding: 3px; border: 1px solid;'></pre>
+

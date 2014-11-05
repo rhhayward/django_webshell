@@ -1,0 +1,237 @@
+<script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+
+<div id='viewImgDiv' style='display: none; position: fixed; left: 1%; top:1%;' onclick='$("#viewImgDiv").hide();'/> 
+  <img style='position: fixed; left: 1%; top: 1%; max-height:98%; max-width:98%; border: solid black 1px; padding: 2px; background-color: rgb(200,100,100);' id='viewImg' /> 
+  <span style='position: fixed; left:2%; top: 2%; font-size: 300%; cursor: pointer; box-shadow:0px 0px 5px 1px white inset; ' onclick='delete_file(new ImageRow(curFname, curRowNum));'> &times; </span>
+  <span style='position: fixed; left:2%; top: 25%; font-size: 200%; cursor: pointer; box-shadow:0px 0px 5px 1px white inset; ' onclick='delete_file_next(new ImageRow(curFname, curRowNum));'> dn </span>
+  <span style='position: fixed; left:2%; top: 50%; font-size: 200%; cursor: pointer; box-shadow:0px 0px 5px 1px white inset; ' onclick='file_next(new ImageRow(curFname, curRowNum));'> n </span>
+</div>
+
+{% include "webshell/execute.html" %}
+
+<h2> here's files for <span id="cwd_span"> {{ cwdin }} </span>: </h2>
+
+<table id='files_table' border='1'>
+<tr/>
+</table>
+
+<script type="text/javascript">
+var curFname = "";
+var curRowNum = -1;
+
+function urlDecode(inString) {
+    return decodeURIComponent(inString).replace('+', ' ');
+}
+
+function urlEncode(inString) {
+    return encodeURIComponent(inString);
+}
+
+function delete_file(image_row) {
+    image_row.highlight("red");
+    var image_name = urlEncode(image_row.image_name);
+    $.getJSON("/webshell/ajax/delete/"+image_row.image_name, function(data){
+        if (data["HTTPRESPONSE"] == 1) {
+            $("#row_"+image_row.row_number).remove();
+        } else {
+            //alert("failure");
+        }
+    });
+    curFname = "";
+    curRowNum = -1;
+}
+
+function file_next(image_row) {
+    show_image(image_row.next());
+}
+
+function delete_file_next(image_row) {
+    delete_file(image_row);
+    show_image(image_row.next());
+}
+
+function set_cwd(dir_name) {
+    dir_name = urlEncode(dir_name).replace('..', '++');
+    $.getJSON("/webshell/ajax/set_cwd/"+dir_name, function(data){
+        if (data["HTTPRESPONSE"] == 1) {
+            $("#cwd_span").text(data["cwd"]);
+            dump_files();
+            get_files();
+        } else {
+            //alert("failure");
+        }
+    });
+}
+
+function show_image(image_row) {
+  if(image_row != null) {
+    var image_name = image_row.image_name;
+    var row_number = image_row.row_number; 
+
+    curFname = image_row.image_name;
+    curRowNum = image_row.row_number;
+    image_row.highlight("green");
+
+    image_name = urlEncode(image_name);
+
+    var v = $('#viewImg').attr('src', '/webshell/file_manager/get/'+image_name)
+        .unbind()
+        .load( function(){ 
+            $("#viewImgDiv").show(); 
+            preloader.preload(image_row.next());
+        } )
+        .error( function(){ 
+            alert("had an error");
+            preloader.preload(image_row.next());
+        } )
+        //.attr('onprogress', function(e) {
+        //        alert('progressing!' + ':' + e);
+        //} )
+    ;
+  }
+}
+
+
+
+
+function ImageRow() {
+    this.image_name = "";
+    this.row_number = -1;
+}
+
+function ImageRow(image_name, row_number) {
+    this.image_name = image_name;
+    this.row_number = row_number;
+    this.nr = null;
+}
+
+ImageRow.prototype.highlight = function(color) {
+    $("#row_"+this.row_number+" td").css("background-color", color);
+}
+
+ImageRow.prototype.next = function () {
+    this.nr = null;
+
+    for(var i = this.row_number+1; $("#row_"+i).length > 0; i++) {
+        var row = $("#row_" + i + " input[name='image_name']")[0];
+        if ( row ) {
+            this.nr = new ImageRow($(row).attr('value'), i);
+            return(this.nr);
+        }
+    }
+    return this.nr;
+}
+
+
+
+function Preloader() {
+    this.queue = [];
+    this.active = false;
+    this.preloaded = {};
+}
+
+Preloader.prototype.preload = function(image_row) {
+  if(image_row != null) {
+    if(this.preloaded[image_row.image_name] != true){
+      this.queue.push(image_row);
+      this.next();
+    }
+  }
+}
+
+Preloader.prototype.next = function() {
+  if(this.queue.length > 0) {
+      image_row = this.queue.shift();
+
+      this.preloaded[image_row.image_name] = true;
+
+      image_row.highlight("orange");
+      $("#row_" + image_row.row_number + " input[name='image_name']").each( function() {
+          $('<img/>').attr('src', '/webshell/file_manager/get/' + $(this).attr('value'))
+              .unbind()
+              .load( function() { 
+                  image_row.highlight("yellow");
+                  preloader.preload(image_row.next());
+              })
+              .error( function(){ 
+                  alert("had an error.2");
+              } )
+	  ;    
+      });
+  }
+}
+
+
+var preloader = new Preloader();
+
+function update_row(f) {
+	fname = urlDecode(f.name);
+	var row_to_update = $('tr[name="' + fname + '"]').get(0);
+    if(row_to_update != null) {
+    	var row_children = $(row_to_update).children("td");
+        if($(row_children[2]).text() != f.fileType) {
+        	$(row_children[2]).html("<pre>" + f.fileType + "</pre>");
+        }
+        if($(row_children[3]).text() != f.size) {
+        	$(row_children[3]).html("<pre>" + f.size + "</pre>");
+        }
+        if($(row_children[4]).text() != f.dateModified) {
+        	$(row_children[4]).html("<pre>" + f.dateModified + "</pre>");
+        }
+    }
+}
+
+var rowNum = 0;
+function add_row(f) {
+	fname = urlDecode(f.name);
+	var rowHtml = '<tr id="row_' + rowNum + '" name="' + fname + '">' + 
+    			'<td>' + '<input type="button" value="Delete" onclick=' + 
+				"'delete_file(new ImageRow(" + '"' + fname + '"' + ", " + rowNum + "));' />" + 
+    				"</td><td>";
+    	if (f.fileType == "dir") {
+		rowHtml += "<a onclick='set_cwd(" + '"' + fname + '"' + ");'> " + fname + " / </a>";
+	} else {
+		if (f.fileType == "image") {
+			rowHtml += "<span style='cursor:pointer;' onclick='show_image(new ImageRow(" + '"' + fname + 
+				'", ' + rowNum + "));'> " + fname + "</span>" +
+				'<input type="hidden" name="image_name" value="' + fname + '"/>';
+		} else {
+			rowHtml += "<a href='/webshell/file_manager/get/" + fname + "' target='_blank'>" + fname + "</a>";
+		}
+		rowHtml += "<a href='/webshell/editor/view/" + fname + "' target='_blank'> &#9998; </a>";
+	}
+	rowHtml += "</td>" + 
+		"<td><pre>" + f.fileType + "</pre></td>" + 
+		"<td><pre>" + f.size + "</pre></td>" + 
+		"<td><pre>" + f.dateModified + "</pre></td>" + 
+		"</tr>";
+
+	$('#files_table tr:last').after( rowHtml );
+	rowNum++;
+}
+
+function dump_files() {
+    $('#files_table').empty();
+    $('#files_table').append( "<tr> </tr>" );
+
+}
+
+function get_files() {
+	$.getJSON( "/webshell/ajax/get_files/", function( data ) {
+		$.each( data, function( index, f ) {
+			fname = urlDecode(f.name);
+			if($('tr[name="' + fname + '"]').length <= 0) {
+				add_row(f);
+			} else {
+            	update_row(f);
+            }
+		});
+	});
+}
+
+// Do initial files load
+
+get_files();
+var tid = setInterval(get_files, 10000);
+
+</script>
